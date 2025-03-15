@@ -8,7 +8,7 @@ public class ContactInformation {
 
     private String mobile;
 
-    private String twiter;
+    private String twitter;
 
     private String instagram;
 }
