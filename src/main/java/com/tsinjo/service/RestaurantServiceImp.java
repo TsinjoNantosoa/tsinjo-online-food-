@@ -30,10 +30,12 @@ public class RestaurantServiceImp implements RestaurantService{
     private UserRepository userRepository;
 
     @Override
+    @Transactional
     public Restaurant createRestaurant(CreateRestaurantRequest req, User user) {
         Restaurant restaurant=new Restaurant();
-        restaurant.setAddress(req.getAddress());
-        restaurant.setContactInformation(req.getContactInformation());
+        restaurant.setAddress(req.getAddress().toAddress());
+        restaurant.setContactInformation(req.getContactInformation() == null ? null
+                : req.getContactInformation().toContactInformation());
         restaurant.setCuisineType(req.getCuisineType());
         restaurant.setDescription(req.getDescription());
         restaurant.setImages(req.getImages() == null ? new java.util.ArrayList<>() : req.getImages());
@@ -46,6 +48,7 @@ public class RestaurantServiceImp implements RestaurantService{
     }
 
     @Override
+    @Transactional
     public Restaurant updateRestaurant(Long restaurantId, CreateRestaurantRequest updateRestaurant) throws Exception {
         Restaurant restaurant=findRestaurantById(restaurantId);
 
@@ -59,10 +62,10 @@ public class RestaurantServiceImp implements RestaurantService{
             restaurant.setName(updateRestaurant.getName());
         }
         if (updateRestaurant.getAddress() != null) {
-            restaurant.setAddress(updateRestaurant.getAddress());
+            restaurant.setAddress(updateRestaurant.getAddress().toAddress());
         }
         if (updateRestaurant.getContactInformation() != null) {
-            restaurant.setContactInformation(updateRestaurant.getContactInformation());
+            restaurant.setContactInformation(updateRestaurant.getContactInformation().toContactInformation());
         }
         if (updateRestaurant.getOpeningHours() != null) {
             restaurant.setOpeningHours(updateRestaurant.getOpeningHours());
@@ -75,6 +78,7 @@ public class RestaurantServiceImp implements RestaurantService{
     }
 
     @Override
+    @Transactional
     public void deleteRestaurant(Long restaurantId) throws Exception {
 
         Restaurant restaurant=findRestaurantById(restaurantId);
@@ -150,6 +154,7 @@ public class RestaurantServiceImp implements RestaurantService{
     }
 
     @Override
+    @Transactional
     public Restaurant updateRestaurantStatus(Long id) throws Exception {
         Restaurant restaurant =findRestaurantById(id);
         restaurant.setOpen(!restaurant.isOpen());

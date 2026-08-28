@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.Instant;
 import java.util.stream.Collectors;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -46,10 +48,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ResponseEntity<ApiError> validation(MethodArgumentNotValidException exception, HttpServletRequest request) {
-        String message = exception.getBindingResult().getFieldErrors().stream()
-                .map(field -> field.getField() + ": " + field.getDefaultMessage())
-                .collect(Collectors.joining("; "));
-        return error(HttpStatus.BAD_REQUEST, message, request);
+        Map<String, String> fields = new LinkedHashMap<>();
+        exception.getBindingResult().getFieldErrors().forEach(field ->
+                fields.putIfAbsent(field.getField(), field.getDefaultMessage()));
+        ApiError body = new ApiError(Instant.now(), 400, "Validation Failed", "Invalid request",
+                fields, request.getRequestURI());
+        return ResponseEntity.badRequest().body(body);
     }
 
     @ExceptionHandler(Exception.class)

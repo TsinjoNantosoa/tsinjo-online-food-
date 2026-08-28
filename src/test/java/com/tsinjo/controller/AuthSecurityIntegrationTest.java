@@ -48,9 +48,10 @@ class AuthSecurityIntegrationTest {
                 .andReturn();
         assertThat(userRepository.findByEmail("alice@example.com").getRole()).isEqualTo(USER_ROLE.ROLE_CUSTOMER);
         String jwt = objectMapper.readTree(signup.getResponse().getContentAsString()).get("jwt").asText();
-        mockMvc.perform(get("/api/users/profile").header("Authorization", "Bearer " + jwt))
+        mockMvc.perform(get("/api/users/me").header("Authorization", "Bearer " + jwt))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value("alice@example.com"));
+                .andExpect(jsonPath("$.email").value("alice@example.com"))
+                .andExpect(jsonPath("$.role").value("ROLE_CUSTOMER"));
     }
 
     @Test
@@ -75,6 +76,10 @@ class AuthSecurityIntegrationTest {
         mockMvc.perform(post("/auth/signin").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"carla@example.com\",\"password\":\"password123\"}"))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").isNotEmpty())
+                .andExpect(jsonPath("$.tokenType").value("Bearer"))
+                .andExpect(jsonPath("$.user.email").value("carla@example.com"))
+                .andExpect(jsonPath("$.user.role").value("ROLE_CUSTOMER"))
                 .andExpect(jsonPath("$.jwt").isNotEmpty())
                 .andExpect(jsonPath("$.role").value("ROLE_CUSTOMER"));
     }
@@ -87,10 +92,41 @@ class AuthSecurityIntegrationTest {
     }
 
     @Test
+    void publicRestaurantAndFoodCatalogueDoNotRequireJwt() throws Exception {
+        mockMvc.perform(get("/api/restaurant"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+        mockMvc.perform(get("/api/food/restaurant/999"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+    }
+
+    @Test
+    void customerCannotAccessAdminEndpoint() throws Exception {
+        MvcResult signup = mockMvc.perform(post("/auth/signup").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"fullName\":\"Customer\",\"email\":\"customer2@example.com\",\"password\":\"password123\"}"))
+                .andExpect(status().isCreated()).andReturn();
+        String jwt = objectMapper.readTree(signup.getResponse().getContentAsString()).get("token").asText();
+        mockMvc.perform(get("/api/admin/restaurants/user").header("Authorization", "Bearer " + jwt))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void signupRejectsInvalidPayload() throws Exception {
         mockMvc.perform(post("/auth/signup").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"fullName\":\"\",\"email\":\"invalid\",\"password\":\"short\"}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.status").value(400));
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Validation Failed"))
+                .andExpect(jsonPath("$.fieldErrors.email").exists());
+    }
+
+    @Test
+    void openApiContractAndSwaggerArePublic() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.components.securitySchemes.bearerAuth").exists());
+        mockMvc.perform(get("/swagger-ui/index.html"))
+                .andExpect(status().isOk());
     }
 }

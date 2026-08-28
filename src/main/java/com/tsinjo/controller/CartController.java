@@ -12,6 +12,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
+import com.tsinjo.mapper.ApiMapper;
+import com.tsinjo.response.CartItemResponse;
+import com.tsinjo.response.CartResponse;
 
 @RestController
 @RequestMapping("/api")
@@ -22,21 +25,22 @@ public class CartController {
 
     @Autowired
     private UserService userService;
+    @Autowired private ApiMapper apiMapper;
 
     @PostMapping("/cart/items")
-    public ResponseEntity<CartItem> addItemToCart(
+    public ResponseEntity<CartItemResponse> addItemToCart(
             @Valid @RequestBody AddCartItemRequest req,
             @RequestHeader ("Authorization") String jwt) throws Exception{
         CartItem cartItem= cartService.addItemToCart(req, jwt);
-        return new ResponseEntity<>(cartItem, HttpStatus.OK);
+        return ResponseEntity.status(HttpStatus.CREATED).body(apiMapper.toCartItemResponse(cartItem));
     }
 
     @PutMapping("/cart/items")
-    public ResponseEntity<CartItem> updateCartItemRequest(
+    public ResponseEntity<CartItemResponse> updateCartItemRequest(
             @Valid @RequestBody UpdateCartItemRequest req,
             @RequestHeader ("Authorization") String jwt) throws Exception{
         CartItem cartItem=cartService.updateCartItemQuantity(req.getCartItemId(), req.getQuantity(), jwt);
-        return new ResponseEntity<>(cartItem, HttpStatus.OK);
+        return ResponseEntity.ok(apiMapper.toCartItemResponse(cartItem));
     }
 
     @DeleteMapping("/cart/items/{id}")
@@ -48,19 +52,20 @@ public class CartController {
     }
 
     @DeleteMapping("/cart")
-    public ResponseEntity<Cart> clearCart(
+    public ResponseEntity<CartResponse> clearCart(
             @RequestHeader ("Authorization") String jwt) throws Exception{
         User user=userService.findUserByJwtToken(jwt);
         Cart cart=cartService.clearCart(user.getId());
-        return new ResponseEntity<>(cart, HttpStatus.OK);
+        cart.setTotal(0L);
+        return ResponseEntity.ok(apiMapper.toCartResponse(cart));
     }
 
    @GetMapping("/cart")
-    public ResponseEntity<Cart> findUserCart(
+    public ResponseEntity<CartResponse> findUserCart(
             @RequestHeader ("Authorization") String jwt) throws Exception{
         User user=userService.findUserByJwtToken(jwt);
         Cart cart=cartService.findCartByUserId(user.getId());
-        return new ResponseEntity<>(cart, HttpStatus.OK);
+        return ResponseEntity.ok(apiMapper.toCartResponse(cart));
     }
 
 }

@@ -26,10 +26,11 @@ public class CartItem {
 
     private int quantity;
 
-    @ElementCollection
-    @CollectionTable(name = "cart_item_ingredients", joinColumns = @JoinColumn(name = "cart_item_id"))
-    @Column(name = "ingredient")
-    private List<String> ingredients = new ArrayList<>();
+    @ManyToMany
+    @JoinTable(name = "cart_item_selected_ingredients",
+            joinColumns = @JoinColumn(name = "cart_item_id"),
+            inverseJoinColumns = @JoinColumn(name = "ingredient_id"))
+    private List<IngredientsItem> ingredients = new ArrayList<>();
 
     private Long totalPrice;
 
@@ -41,11 +42,11 @@ public class CartItem {
         this.totalPrice = totalPrice;
     }
 
-    public List<String> getIngredients() {
+    public List<IngredientsItem> getIngredients() {
         return ingredients;
     }
 
-    public void setIngredients(List<String> ingredients) {
+    public void setIngredients(List<IngredientsItem> ingredients) {
         this.ingredients = ingredients;
     }
 

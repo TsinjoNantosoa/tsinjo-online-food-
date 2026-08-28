@@ -10,6 +10,7 @@ import com.tsinjo.repository.UserRepository;
 import com.tsinjo.request.LoginRequest;
 import com.tsinjo.request.SignupRequest;
 import com.tsinjo.response.AuthResponse;
+import com.tsinjo.response.UserResponse;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,9 +27,11 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Locale;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 
 @RestController
 @RequestMapping("/auth")
+@SecurityRequirements
 public class AuthController {
     private static final Logger log = LoggerFactory.getLogger(AuthController.class);
     private final UserRepository userRepository;
@@ -70,8 +73,7 @@ public class AuthController {
                 List.of(new SimpleGrantedAuthority(USER_ROLE.ROLE_CUSTOMER.name())));
         log.info("Customer account created for {}", email);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(response(jwtProvider.generateToken(authentication), "Registration successful",
-                        USER_ROLE.ROLE_CUSTOMER));
+                .body(response(jwtProvider.generateToken(authentication), "Registration successful", savedUser));
     }
 
     @PostMapping({"/signin", "/signing"})
@@ -85,17 +87,17 @@ public class AuthController {
             log.warn("Failed login attempt for {}", email);
             throw exception;
         }
-        String authority = authentication.getAuthorities().iterator().next().getAuthority();
+        User user = userRepository.findByEmail(email);
         log.info("Successful login for {}", email);
-        return ResponseEntity.ok(response(jwtProvider.generateToken(authentication), "Login successful",
-                USER_ROLE.valueOf(authority)));
+        return ResponseEntity.ok(response(jwtProvider.generateToken(authentication), "Login successful", user));
     }
 
-    private AuthResponse response(String jwt, String message, USER_ROLE role) {
+    private AuthResponse response(String jwt, String message, User user) {
         AuthResponse response = new AuthResponse();
-        response.setJwt(jwt);
+        response.setToken(jwt);
         response.setMessage(message);
-        response.setRole(role);
+        response.setUser(new UserResponse(user.getId(), user.getFullName(), user.getEmail(),
+                user.getRole(), java.util.List.copyOf(user.getAddresses())));
         return response;
     }
 }

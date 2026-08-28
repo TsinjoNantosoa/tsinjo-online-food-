@@ -18,7 +18,8 @@ public class IngredientsItem {
 
     private String name;
 
-    @ManyToOne //many ingredient have somme categories
+    @JsonIgnore
+    @ManyToOne
     private IngredientCategory category;
 
     @JsonIgnore

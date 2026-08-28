@@ -8,12 +8,14 @@ import com.tsinjo.service.AuthorizationService;
 import com.tsinjo.service.CategoryService;
 import com.tsinjo.service.RestaurantService;
 import com.tsinjo.service.UserService;
+import com.tsinjo.response.CategorySummaryResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 
 @RestController
 @RequestMapping("/api")
@@ -32,18 +34,21 @@ public class CategoryController {
     }
 
     @PostMapping("/admin/categories")
-    public ResponseEntity<Category> create(@Valid @RequestBody IngredientCategoryRequest request,
+    public ResponseEntity<CategorySummaryResponse> create(@Valid @RequestBody IngredientCategoryRequest request,
                                            @RequestHeader("Authorization") String jwt) throws Exception {
         User user = userService.findUserByJwtToken(jwt);
         Restaurant restaurant = restaurantService.findRestaurantById(request.getRestaurantId());
         authorizationService.requireRestaurantOwnerOrAdmin(user, restaurant);
+        Category category = categoryService.createCategory(request.getName(), restaurant.getId());
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(categoryService.createCategory(request.getName(), restaurant.getId()));
+                .body(new CategorySummaryResponse(category.getId(), category.getName()));
     }
 
     @GetMapping("/restaurants/{restaurantId}/categories")
-    public ResponseEntity<List<Category>> list(@PathVariable Long restaurantId) throws Exception {
+    @SecurityRequirements
+    public ResponseEntity<List<com.tsinjo.response.CategorySummaryResponse>> list(@PathVariable Long restaurantId) throws Exception {
         restaurantService.findRestaurantById(restaurantId);
-        return ResponseEntity.ok(categoryService.findCategoryByRestaurantId(restaurantId));
+        return ResponseEntity.ok(categoryService.findCategoryByRestaurantId(restaurantId).stream()
+                .map(category -> new com.tsinjo.response.CategorySummaryResponse(category.getId(), category.getName())).toList());
     }
 }

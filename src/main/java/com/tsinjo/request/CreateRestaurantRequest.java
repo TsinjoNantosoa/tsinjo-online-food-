@@ -1,7 +1,5 @@
 package com.tsinjo.request;
 
-import com.tsinjo.model.Address;
-import com.tsinjo.model.ContactInformation;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -24,8 +22,9 @@ public class CreateRestaurantRequest {
     private String cuisineType;
     @NotNull
     @Valid
-    private Address address;
-    private ContactInformation contactInformation;
+    private AddressRequest address;
+    @Valid
+    private ContactInformationRequest contactInformation;
     @NotBlank
     private String openingHours;
 
@@ -45,19 +44,19 @@ public class CreateRestaurantRequest {
         this.openingHours = openingHours;
     }
 
-    public ContactInformation getContactInformation() {
+    public ContactInformationRequest getContactInformation() {
         return contactInformation;
     }
 
-    public void setContactInformation(ContactInformation contactInformation) {
+    public void setContactInformation(ContactInformationRequest contactInformation) {
         this.contactInformation = contactInformation;
     }
 
-    public Address getAddress() {
+    public AddressRequest getAddress() {
         return address;
     }
 
-    public void setAddress(Address address) {
+    public void setAddress(AddressRequest address) {
         this.address = address;
     }
 

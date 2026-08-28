@@ -166,3 +166,105 @@ Les erreurs ont un format uniforme sans stack trace :
 ```
 
 Les tests utilisent H2 en mémoire en mode MySQL et couvrent le contexte JPA, signup/login, BCrypt, protection JWT, validation, panier, commande et les retours restaurant/plats. Aucun serveur MySQL n’est requis pour exécuter les tests.
+
+## Frontend Integration
+
+- Backend : `http://localhost:8080`
+- Frontend Vite : `http://localhost:5173`
+- Swagger : `http://localhost:8080/swagger-ui/index.html`
+- Contrat détaillé : [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md)
+
+### Authentication
+
+- `POST /auth/signup`
+- `POST /auth/signin`
+- `GET /api/users/me`
+
+Le login renvoie `token`, `tokenType` et le profil utilisateur. Envoyer ensuite :
+
+```http
+Authorization: Bearer <token>
+```
+
+### Public API
+
+Ces routes sont accessibles sans JWT :
+
+- `GET /api/restaurant`
+- `GET /api/restaurant/search?keyword=burger`
+- `GET /api/restaurant/{id}`
+- `GET /api/food/search?name=burger`
+- `GET /api/food/restaurant/{restaurantId}`
+- `GET /api/restaurants/{restaurantId}/categories`
+
+### Customer API
+
+- Profil : `GET /api/users/me` et `GET /api/users/profile`
+- Favoris : `PUT /api/restaurant/{id}/add-favorite`
+- Panier : `GET /api/cart`, `POST|PUT /api/cart/items`, `DELETE /api/cart/items/{id}`
+- Commandes : `POST|GET /api/orders`, `GET /api/orders/{id}`
+
+### Restaurant Owner API
+
+- Restaurant : `/api/admin/restaurants/**`
+- Catégories : `POST /api/admin/categories`
+- Plats : `/api/admin/food/**`
+- Ingrédients : `/api/admin/ingredients/**`
+- Commandes : `/api/admin/order/restaurant/{id}` et `/api/admin/orders/{orderId}/status/{orderStatus}`
+
+Chaque opération vérifie aussi que le restaurant appartient réellement à l’utilisateur, sauf pour `ROLE_ADMIN`.
+
+La création utilise `POST /api/admin/food`, la modification métier `PATCH /api/admin/food/{id}` et l’ancien `PUT /api/admin/food/{id}` conserve le basculement de disponibilité.
+
+### Admin API
+
+`ROLE_ADMIN` peut utiliser les routes `/api/admin/**` existantes. Le signup public ne permet jamais de créer un administrateur.
+
+### Development profile
+
+Le profil `dev` crée uniquement si nécessaire trois comptes et un petit catalogue :
+
+| Rôle | Email | Mot de passe |
+|---|---|---|
+| Customer | `customer@test.com` | `Customer123!` |
+| Restaurant owner | `owner@test.com` | `Owner123!` |
+| Admin | `admin@test.com` | `Admin123!` |
+
+Ces comptes ne sont jamais créés hors du profil `dev`. Lancer sous PowerShell :
+
+```powershell
+$env:JWT_SECRET = "une-valeur-dev-longue-d-au-moins-32-caracteres"
+.\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=dev"
+```
+
+### Example JSON
+
+Login :
+
+```json
+{"email":"customer@test.com","password":"Customer123!"}
+```
+
+Food :
+
+```json
+{"id":12,"name":"Classic Burger","price":15000,"restaurant":{"id":1,"name":"Tsinjo Food"},"category":{"id":2,"name":"Burgers"},"ingredients":[]}
+```
+
+Cart :
+
+```json
+{"id":1,"total":30000,"totalItems":2,"items":[{"foodId":12,"quantity":2,"unitPrice":15000,"selectedIngredients":[]}]}
+```
+
+Order :
+
+```json
+{"id":100,"status":"PENDING","totalAmount":30000,"restaurant":{"id":1,"name":"Tsinjo Food"},"items":[]}
+```
+
+Error :
+
+```json
+{"timestamp":"2026-08-28T12:00:00Z","status":400,"error":"Validation Failed","message":"Invalid request","fieldErrors":{"quantity":"must be greater than 0"},"path":"/api/cart/items"}
+```

@@ -8,6 +8,7 @@ import com.tsinjo.repository.IngredientItemRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.tsinjo.exception.ResourceNotFoundException;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -44,9 +45,12 @@ public class IngredientServiceImp implements IngredientsService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<IngredientCategory> findIngredientCategoryByRestaurantId(Long id) throws Exception {
         restaurantService.findRestaurantById(id );
-        return  ingredientCategoryRepository.findByRestaurantId(id);
+        List<IngredientCategory> categories = ingredientCategoryRepository.findByRestaurantId(id);
+        categories.forEach(category -> category.getIngredientsItems().size());
+        return categories;
     }
 
     @Override

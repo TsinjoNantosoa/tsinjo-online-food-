@@ -42,7 +42,7 @@ public class OrderServiceImp implements OrderService {
     @Override
     @Transactional
     public Order createOrder(OrderRequest order, User user) throws Exception {
-        Address shipAddress=order.getDeliveryAddress();
+        Address shipAddress=order.getDeliveryAddress().toAddress();
 
         Address saveAddress=addressRepository.save(shipAddress);
 
@@ -73,7 +73,7 @@ public class OrderServiceImp implements OrderService {
         for (CartItem cartItem:cart.getItems()){
             OrderItems orderItems1=new OrderItems();
             orderItems1.setFood(cartItem.getFood());
-            orderItems1.setIngredients(new ArrayList<>(cartItem.getIngredients()));
+            orderItems1.setIngredients(cartItem.getIngredients().stream().map(IngredientsItem::getName).toList());
             orderItems1.setQuantity(cartItem.getQuantity());
             orderItems1.setTotalPrice(cartItem.getTotalPrice());
 
@@ -95,6 +95,7 @@ public class OrderServiceImp implements OrderService {
     }
 
     @Override
+    @Transactional
     public Order updateOrder(Long orderId, String orderStatus) throws Exception {
         Order order=findOrderById(orderId);
         String normalizedStatus = orderStatus.toUpperCase(java.util.Locale.ROOT);
@@ -107,6 +108,7 @@ public class OrderServiceImp implements OrderService {
     }
 
     @Override
+    @Transactional
     public void cancelOrder(Long orderId) throws Exception {
         Order order=findOrderById(orderId);
         orderRepository.delete(order);

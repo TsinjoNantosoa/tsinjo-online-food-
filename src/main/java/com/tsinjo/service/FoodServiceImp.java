@@ -23,7 +23,9 @@ public class FoodServiceImp implements FoodService{
 
 
     @Override
-    public Food createFood(CreateFoodRequest req, Category category, Restaurant restaurant) {
+    @Transactional
+    public Food createFood(CreateFoodRequest req, Category category, Restaurant restaurant,
+                           List<com.tsinjo.model.IngredientsItem> ingredients) {
         Food food=new Food();
         food.setCategory(category);
         food.setRestaurant(restaurant);
@@ -31,8 +33,8 @@ public class FoodServiceImp implements FoodService{
         food.setImages(req.getImages() == null ? new java.util.ArrayList<>() : req.getImages());
         food.setName(req.getName());
         food.setPrice(req.getPrice());
-        food.setIngredients(req.getIngredients() == null ? new java.util.ArrayList<>() : req.getIngredients());
-        food.setSeasonal(req.isSeasional());
+        food.setIngredients(ingredients == null ? new java.util.ArrayList<>() : ingredients);
+        food.setSeasonal(req.isSeasonal());
         food.setVegetarian(req.isVegetarian());
         food.setAvailable(true);
         food.setCreationDate(new java.util.Date());
@@ -41,6 +43,23 @@ public class FoodServiceImp implements FoodService{
         restaurant.getFoods().add(food);
 
         return saveFood;
+    }
+
+    @Override
+    @Transactional
+    public Food updateFood(Long foodId, CreateFoodRequest req, Category category, Restaurant restaurant,
+                           List<com.tsinjo.model.IngredientsItem> ingredients) throws Exception {
+        Food food = findFoodById(foodId);
+        food.setName(req.getName());
+        food.setDescription(req.getDescription());
+        food.setPrice(req.getPrice());
+        food.setCategory(category);
+        food.setRestaurant(restaurant);
+        food.setImages(req.getImages() == null ? new java.util.ArrayList<>() : req.getImages());
+        food.setIngredients(ingredients == null ? new java.util.ArrayList<>() : ingredients);
+        food.setVegetarian(req.isVegetarian());
+        food.setSeasonal(req.isSeasonal());
+        return foodRepository.save(food);
     }
 
     @Override
@@ -123,6 +142,7 @@ public class FoodServiceImp implements FoodService{
     }
 
     @Override
+    @Transactional
     public Food updateAvailabilityStatus(Long foodId) throws Exception {
         Food food=findFoodById(foodId);
         food.setAvailable(!food.isAvailable());
@@ -133,5 +153,8 @@ public class FoodServiceImp implements FoodService{
     private void initializeCollections(Food food) {
         food.getImages().size();
         food.getIngredients().size();
+        if (food.getRestaurant() != null) {
+            food.getRestaurant().getName();
+        }
     }
 }

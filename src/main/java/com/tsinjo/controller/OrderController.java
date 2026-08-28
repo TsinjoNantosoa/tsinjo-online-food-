@@ -13,6 +13,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import com.tsinjo.exception.ForbiddenOperationException;
+import com.tsinjo.mapper.ApiMapper;
+import com.tsinjo.response.OrderResponse;
 
 import java.util.List;
 
@@ -24,33 +26,34 @@ public class OrderController {
 
     @Autowired
     private UserService userService;
+    @Autowired private ApiMapper apiMapper;
 
     @PostMapping("/orders")
-    public ResponseEntity<Order> createOrder(
+    public ResponseEntity<OrderResponse> createOrder(
             @Valid @RequestBody OrderRequest orderRequest,
             @RequestHeader("Authorization") String jwt) throws Exception{
         User user=userService.findUserByJwtToken(jwt);
        Order order=orderService.createOrder(orderRequest, user);
-        return new ResponseEntity<>(order, HttpStatus.CREATED);
+        return ResponseEntity.status(HttpStatus.CREATED).body(apiMapper.toOrderResponse(order));
     }
 
     @GetMapping("/orders")
-    public ResponseEntity <List<Order>> getOrderHistory(
+    public ResponseEntity<List<OrderResponse>> getOrderHistory(
             @RequestHeader("Authorization") String jwt) throws Exception{
         User user=userService.findUserByJwtToken(jwt);
        List<Order> orders=orderService.getUsersOrder(user.getId());
-        return new ResponseEntity<>(orders, HttpStatus.OK);
+        return ResponseEntity.ok(orders.stream().map(apiMapper::toOrderResponse).toList());
     }
 
     @GetMapping("/orders/{id}")
-    public ResponseEntity<Order> getOrder(@PathVariable Long id,
+    public ResponseEntity<OrderResponse> getOrder(@PathVariable Long id,
                                            @RequestHeader("Authorization") String jwt) throws Exception {
         User user = userService.findUserByJwtToken(jwt);
         Order order = orderService.findOrderById(id);
         if (!order.getCustomer().getId().equals(user.getId())) {
             throw new ForbiddenOperationException("This order does not belong to the authenticated user");
         }
-        return ResponseEntity.ok(order);
+        return ResponseEntity.ok(apiMapper.toOrderResponse(order));
     }
 
 

@@ -19,7 +19,7 @@ public class UserController {
     @Autowired
     private UserService userService;
 
-    @GetMapping("/profile")
+    @GetMapping({"/profile", "/me"})
     public ResponseEntity<UserResponse> findUserByJwtToken(@RequestHeader("Authorization") String jwt) throws Exception {
         User user= userService.findUserByJwtToken(jwt);
         return ResponseEntity.ok(new UserResponse(user.getId(), user.getFullName(), user.getEmail(),

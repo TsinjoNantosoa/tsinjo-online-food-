@@ -1,6 +1,5 @@
 package com.tsinjo.request;
 
-import com.tsinjo.model.Address;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 
@@ -10,7 +9,7 @@ public class OrderRequest {
 
     @NotNull
     @Valid
-    private Address deliveryAddress;
+    private AddressRequest deliveryAddress;
 
 
     public Long getRestaurantId() {
@@ -21,11 +20,11 @@ public class OrderRequest {
         this.restaurantId = restaurantId;
     }
 
-    public Address getDeliveryAddress() {
+    public AddressRequest getDeliveryAddress() {
         return deliveryAddress;
     }
 
-    public void setDeliveryAddress(Address deliveryAddress) {
+    public void setDeliveryAddress(AddressRequest deliveryAddress) {
         this.deliveryAddress = deliveryAddress;
     }
 

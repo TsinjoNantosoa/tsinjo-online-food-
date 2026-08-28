@@ -3,13 +3,17 @@ package com.tsinjo.service;
 import com.tsinjo.model.Category;
 import com.tsinjo.model.Food;
 import com.tsinjo.model.Restaurant;
+import com.tsinjo.model.IngredientsItem;
 import com.tsinjo.request.CreateFoodRequest;
 
 import java.util.List;
 
 public interface FoodService {
 
-    public Food createFood(CreateFoodRequest req, Category category, Restaurant restaurant);
+    Food createFood(CreateFoodRequest req, Category category, Restaurant restaurant, List<IngredientsItem> ingredients);
+
+    Food updateFood(Long foodId, CreateFoodRequest req, Category category,
+                    Restaurant restaurant, List<IngredientsItem> ingredients) throws Exception;
 
     void  deleteFood(Long foodId) throws Exception;
 

@@ -4,6 +4,7 @@ import com.tsinjo.model.Cart;
 import com.tsinjo.model.CartItem;
 import com.tsinjo.model.Food;
 import com.tsinjo.model.User;
+import com.tsinjo.model.IngredientsItem;
 import com.tsinjo.repository.CartItemRepository;
 import com.tsinjo.repository.CartRepository;
 import com.tsinjo.request.AddCartItemRequest;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.tsinjo.exception.ResourceNotFoundException;
 import com.tsinjo.exception.ForbiddenOperationException;
+import com.tsinjo.exception.BusinessException;
 
 import java.util.Optional;
 
@@ -30,15 +32,34 @@ public class CartServiceImp implements CartService {
     @Autowired
     private FoodService foodService;
 
+    @Autowired
+    private IngredientsService ingredientsService;
+
     @Override
     @Transactional
     public CartItem addItemToCart(AddCartItemRequest req, String jwt) throws Exception {
         User user = userService.findUserByJwtToken(jwt);
         Food food = foodService.findFoodById(req.getFoodId());
         Cart cart = cartRepository.findByCustomerId(user.getId());
+        if (!food.isAvailable()) {
+            throw new BusinessException("Food is currently unavailable");
+        }
+        java.util.List<Long> requestedIds = req.getIngredientIds() == null ? java.util.List.of()
+                : req.getIngredientIds().stream().distinct().sorted().toList();
+        java.util.List<IngredientsItem> selectedIngredients = requestedIds.stream()
+                .map(ingredientsService::findIngredientById)
+                .toList();
+        java.util.Set<Long> allowedIds = food.getIngredients().stream()
+                .map(IngredientsItem::getId).collect(java.util.stream.Collectors.toSet());
+        if (!allowedIds.containsAll(requestedIds)) {
+            throw new BusinessException("One or more selected ingredients are not available for this food");
+        }
+        if (selectedIngredients.stream().anyMatch(ingredient -> !ingredient.isStoke())) {
+            throw new BusinessException("One or more selected ingredients are out of stock");
+        }
 
         for (CartItem cartItem : cart.getItems()) {
-            if (cartItem.getFood().equals(food)) {
+            if (sameConfiguration(cartItem, food.getId(), requestedIds)) {
                 int newQuantity = cartItem.getQuantity() + req.getQuantity();
                 return updateOwnedCartItemQuantity(cartItem, newQuantity);
             }
@@ -48,13 +69,22 @@ public class CartServiceImp implements CartService {
         cartItem.setFood(food);
         cartItem.setCart(cart);
         cartItem.setQuantity(req.getQuantity());
-        cartItem.setIngredients(req.getIngredients() == null ? new java.util.ArrayList<>() : req.getIngredients());
+        cartItem.setIngredients(new java.util.ArrayList<>(selectedIngredients));
         cartItem.setTotalPrice(req.getQuantity() * food.getPrice()); // Correction ici
 
         CartItem saveCartItem = cartItemRepository.save(cartItem);
         cart.getItems().add(saveCartItem);
 
         return saveCartItem;
+    }
+
+    private boolean sameConfiguration(CartItem item, Long foodId, java.util.List<Long> ingredientIds) {
+        if (!item.getFood().getId().equals(foodId)) {
+            return false;
+        }
+        java.util.List<Long> existingIds = item.getIngredients().stream()
+                .map(IngredientsItem::getId).distinct().sorted().toList();
+        return existingIds.equals(ingredientIds);
     }
 
     @Override
@@ -79,6 +109,7 @@ public class CartServiceImp implements CartService {
     }
 
     @Override
+    @Transactional
     public Cart removeItemFromCart(Long cartItemId, String jwt) throws Exception {
         User user = userService.findUserByJwtToken(jwt);
         Cart cart = cartRepository.findByCustomerId(user.getId());
@@ -131,6 +162,7 @@ public class CartServiceImp implements CartService {
     }
 
     @Override
+    @Transactional
     public Cart clearCart(Long userId) throws Exception {
         Cart cart = findCartByUserId(userId);
         cart.getItems().clear();
