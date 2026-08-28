@@ -1,119 +1,101 @@
 package com.tsinjo.controller;
 
 import com.tsinjo.config.JwtProvider;
+import com.tsinjo.exception.DuplicateResourceException;
 import com.tsinjo.model.Cart;
 import com.tsinjo.model.USER_ROLE;
 import com.tsinjo.model.User;
 import com.tsinjo.repository.CartRepository;
 import com.tsinjo.repository.UserRepository;
 import com.tsinjo.request.LoginRequest;
+import com.tsinjo.request.SignupRequest;
 import com.tsinjo.response.AuthResponse;
-import com.tsinjo.service.CustomerUserDetailsService;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.*;
 
-import java.util.Collection;
+import java.util.List;
+import java.util.Locale;
 
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
+    private static final Logger log = LoggerFactory.getLogger(AuthController.class);
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtProvider jwtProvider;
+    private final AuthenticationManager authenticationManager;
+    private final CartRepository cartRepository;
 
-    @Autowired
-    private UserRepository userRepository;
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-    @Autowired
-    private JwtProvider jwtProvider;
-    @Autowired
-    private CustomerUserDetailsService customerUserDetailsService;
-    @Autowired
-    private CartRepository cartRepository;
-
+    public AuthController(UserRepository userRepository, PasswordEncoder passwordEncoder,
+                          JwtProvider jwtProvider, AuthenticationManager authenticationManager,
+                          CartRepository cartRepository) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtProvider = jwtProvider;
+        this.authenticationManager = authenticationManager;
+        this.cartRepository = cartRepository;
+    }
 
     @PostMapping("/signup")
-    public ResponseEntity<AuthResponse>createUserHandler(@RequestBody User user) throws Exception {
-
-        User isEmailExist=userRepository.findByEmail(user.getEmail());
-        if(isEmailExist!=null){
-            throw new Exception("Email is used in other account");
+    @Transactional
+    public ResponseEntity<AuthResponse> signup(@Valid @RequestBody SignupRequest request) {
+        String email = request.getEmail().trim().toLowerCase(Locale.ROOT);
+        if (userRepository.findByEmail(email) != null) {
+            throw new DuplicateResourceException("An account already exists for this email");
         }
+        User user = new User();
+        user.setEmail(email);
+        user.setFullName(request.getFullName().trim());
+        user.setRole(USER_ROLE.ROLE_CUSTOMER);
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        User savedUser = userRepository.save(user);
 
-        User createdUser=new User();
-        createdUser.setEmail(user.getEmail());
-        createdUser.setFullName(user.getFullName());
-        createdUser.setRole(user.getRole());
-        createdUser.setPassword(passwordEncoder.encode(user.getPassword())); // Encode password
-
-        User savedUser= userRepository.save(createdUser);
-
-
-        Cart cart=new Cart();
+        Cart cart = new Cart();
         cart.setCustomer(savedUser);
+        cart.setTotal(0L);
         cartRepository.save(cart);
 
-
-        Authentication authentication=new UsernamePasswordAuthenticationToken(user.getEmail(), user.getPassword());
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-
-        String jwt=jwtProvider.generateToken(authentication);
-
-        AuthResponse authResponse =new AuthResponse();
-        authResponse.setJwt(jwt);
-        authResponse.setMessage("REGISTRATION WITH SUCCESS");
-        authResponse.setRole(savedUser.getRole());
-
-
-
-        return new ResponseEntity<>(authResponse, HttpStatus.CREATED );
+        Authentication authentication = new UsernamePasswordAuthenticationToken(email, null,
+                List.of(new SimpleGrantedAuthority(USER_ROLE.ROLE_CUSTOMER.name())));
+        log.info("Customer account created for {}", email);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(response(jwtProvider.generateToken(authentication), "Registration successful",
+                        USER_ROLE.ROLE_CUSTOMER));
     }
 
-    @PostMapping("/signing")
-    public  ResponseEntity<AuthResponse>signin(@RequestBody LoginRequest req){
-        String username=req.getEmail();
-        String password=req.getPassword();
-
-        Authentication authentication=authentificate(username,password);
-
-        Collection<? extends GrantedAuthority>authorities=authentication.getAuthorities();
-        String role=authorities.isEmpty()?null:authorities.iterator().next().getAuthority();
-
-        String jwt=jwtProvider.generateToken(authentication);
-
-        AuthResponse authResponse =new AuthResponse();
-        authResponse.setJwt(jwt);
-        authResponse.setMessage("login success");
-        authResponse.setRole(USER_ROLE.valueOf(role));
-
-        return new ResponseEntity<>(authResponse, HttpStatus.OK );
-
-
-    }
-
-    private Authentication authentificate(String username, String password) {
-        UserDetails userDetails=customerUserDetailsService.loadUserByUsername(username);
-
-        if(userDetails==null){
-            throw  new BadCredentialsException("invalid username........");
+    @PostMapping({"/signin", "/signing"})
+    public ResponseEntity<AuthResponse> signin(@Valid @RequestBody LoginRequest request) {
+        String email = request.getEmail().trim().toLowerCase(Locale.ROOT);
+        Authentication authentication;
+        try {
+            authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(email, request.getPassword()));
+        } catch (AuthenticationException exception) {
+            log.warn("Failed login attempt for {}", email);
+            throw exception;
         }
-        if (!passwordEncoder.matches(password,userDetails.getPassword())){
-            throw new BadCredentialsException("invalid password .....");
-        }
-
-        return  new UsernamePasswordAuthenticationToken(userDetails,null, userDetails.getAuthorities());
+        String authority = authentication.getAuthorities().iterator().next().getAuthority();
+        log.info("Successful login for {}", email);
+        return ResponseEntity.ok(response(jwtProvider.generateToken(authentication), "Login successful",
+                USER_ROLE.valueOf(authority)));
     }
 
-
-
+    private AuthResponse response(String jwt, String message, USER_ROLE role) {
+        AuthResponse response = new AuthResponse();
+        response.setJwt(jwt);
+        response.setMessage(message);
+        response.setRole(role);
+        return response;
+    }
 }

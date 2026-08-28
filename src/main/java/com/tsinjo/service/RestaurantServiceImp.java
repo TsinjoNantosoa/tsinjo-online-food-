@@ -10,6 +10,8 @@ import com.tsinjo.repository.UserRepository;
 import com.tsinjo.request.CreateRestaurantRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import com.tsinjo.exception.ResourceNotFoundException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -29,14 +31,12 @@ public class RestaurantServiceImp implements RestaurantService{
 
     @Override
     public Restaurant createRestaurant(CreateRestaurantRequest req, User user) {
-        Address address=addressRepository.save(req.getAddress());
-
         Restaurant restaurant=new Restaurant();
-        restaurant.setAddress(address);
+        restaurant.setAddress(req.getAddress());
         restaurant.setContactInformation(req.getContactInformation());
         restaurant.setCuisineType(req.getCuisineType());
         restaurant.setDescription(req.getDescription());
-        restaurant.setImages(req.getImages());
+        restaurant.setImages(req.getImages() == null ? new java.util.ArrayList<>() : req.getImages());
         restaurant.setName(req.getName());
         restaurant.setOpeningHours(req.getOpeningHours());
         restaurant.setRegistrationDate(LocalDateTime.now());
@@ -49,14 +49,26 @@ public class RestaurantServiceImp implements RestaurantService{
     public Restaurant updateRestaurant(Long restaurantId, CreateRestaurantRequest updateRestaurant) throws Exception {
         Restaurant restaurant=findRestaurantById(restaurantId);
 
-        if (restaurant.getCuisineType()!=null){
+        if (updateRestaurant.getCuisineType()!=null){
             restaurant.setCuisineType(updateRestaurant.getCuisineType());
         }
-        if ((restaurant.getDescription()!=null)){
+        if (updateRestaurant.getDescription()!=null){
             restaurant.setDescription(updateRestaurant.getDescription());
         }
-        if (restaurant.getName()!=null){
+        if (updateRestaurant.getName()!=null){
             restaurant.setName(updateRestaurant.getName());
+        }
+        if (updateRestaurant.getAddress() != null) {
+            restaurant.setAddress(updateRestaurant.getAddress());
+        }
+        if (updateRestaurant.getContactInformation() != null) {
+            restaurant.setContactInformation(updateRestaurant.getContactInformation());
+        }
+        if (updateRestaurant.getOpeningHours() != null) {
+            restaurant.setOpeningHours(updateRestaurant.getOpeningHours());
+        }
+        if (updateRestaurant.getImages() != null) {
+            restaurant.setImages(updateRestaurant.getImages());
         }
 
         return restaurantRepository.save(restaurant);
@@ -72,58 +84,68 @@ public class RestaurantServiceImp implements RestaurantService{
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<Restaurant> getAllRestaurant() {
-        return restaurantRepository.findAll();
+        List<Restaurant> restaurants = restaurantRepository.findAll();
+        restaurants.forEach(restaurant -> restaurant.getImages().size());
+        return restaurants;
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<Restaurant> searchRestaurant(String keyword) {
-        return restaurantRepository.findBySearchQuery(keyword);
+        List<Restaurant> restaurants = restaurantRepository.findBySearchQuery(keyword);
+        restaurants.forEach(restaurant -> restaurant.getImages().size());
+        return restaurants;
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Restaurant findRestaurantById(Long id) throws Exception {
         Optional<Restaurant>opt=restaurantRepository.findById(id);
 
         if (opt.isEmpty()){
-            throw  new Exception("Restaurant not found with id :" + id );
+            throw new ResourceNotFoundException("Restaurant not found with id: " + id);
         }
-        return opt.get();
+        Restaurant restaurant = opt.get();
+        restaurant.getImages().size();
+        return restaurant;
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Restaurant getRestaurantByUserId(Long userId) throws Exception {
         Restaurant restaurant=restaurantRepository.findByOwnerId(userId);
         if (restaurant==null){
-            throw  new RuntimeException("Restaurant not found with ownerId" + userId);
+            throw new ResourceNotFoundException("Restaurant not found for owner id: " + userId);
         }
 
-        return null;
+        restaurant.getImages().size();
+        return restaurant;
     }
 
     @Override
+    @Transactional
     public RestaurantDto addToFavorites(Long restaurantId, User user) throws Exception {
         Restaurant restaurant =findRestaurantById(restaurantId);
+        User managedUser = userRepository.findById(user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + user.getId()));
         RestaurantDto dto=new RestaurantDto();
         dto.setImages(restaurant.getImages());
         dto.setTitle(restaurant.getName());
+        dto.setDescription(restaurant.getDescription());
         dto.setId(restaurantId);
 
         boolean isFavorited=false;
-        List<RestaurantDto> favorites=user.getFavorites();
-        for (RestaurantDto favorite:favorites){
-            if (favorite.getId().equals(restaurantId)){
-                isFavorited=true;
-                break;
-            }
-        }
+        List<Restaurant> favorites=managedUser.getFavorites();
+        isFavorited = favorites.stream().anyMatch(favorite -> favorite.getId().equals(restaurantId));
         if (isFavorited){
             favorites.removeIf(favorite->favorite.getId().equals(restaurantId));
         }else {
-            favorites.add(dto);
+            favorites.add(restaurant);
         }
 
-        userRepository.save(user);
+        userRepository.save(managedUser);
         return dto;
     }
 

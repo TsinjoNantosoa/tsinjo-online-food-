@@ -6,6 +6,8 @@ import com.tsinjo.request.CreateRestaurantRequest;
 import com.tsinjo.response.MessageResponse;
 import com.tsinjo.service.RestaurantService;
 import com.tsinjo.service.UserService;
+import com.tsinjo.service.AuthorizationService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,10 +21,12 @@ public class AdminRestaurantController {
     private RestaurantService restaurantService;
     @Autowired
     private UserService userService;
+    @Autowired
+    private AuthorizationService authorizationService;
 
     @PostMapping()
     public ResponseEntity<Restaurant> createRestaurant(
-        @RequestBody CreateRestaurantRequest req,
+        @Valid @RequestBody CreateRestaurantRequest req,
         @RequestHeader("Authorization") String jwt
     ) throws Exception{
         User user=userService.findUserByJwtToken(jwt);
@@ -38,23 +42,22 @@ public class AdminRestaurantController {
             @PathVariable Long id
     ) throws Exception{
         User user=userService.findUserByJwtToken(jwt);
+        authorizationService.requireRestaurantOwnerOrAdmin(user, restaurantService.findRestaurantById(id));
         Restaurant restaurant= restaurantService.updateRestaurant(id, req);
-        return  new ResponseEntity<>(restaurant, HttpStatus.CREATED);
+        return ResponseEntity.ok(restaurant);
     }
 
 
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<MessageResponse> deleteRestaurant(
+    public ResponseEntity<Void> deleteRestaurant(
             @RequestHeader("Authorization") String jwt,
             @PathVariable Long id
     ) throws Exception{
         User user=userService.findUserByJwtToken(jwt);
+        authorizationService.requireRestaurantOwnerOrAdmin(user, restaurantService.findRestaurantById(id));
         restaurantService.deleteRestaurant(id);
-        MessageResponse response=new MessageResponse();
-        response.setMessage("restaurant deleted with success.....");
-
-        return  new ResponseEntity<>(response, HttpStatus.CREATED);
+        return ResponseEntity.noContent().build();
     }
 
 
@@ -65,6 +68,7 @@ public class AdminRestaurantController {
             @PathVariable Long id
     ) throws Exception{
         User user=userService.findUserByJwtToken(jwt);
+        authorizationService.requireRestaurantOwnerOrAdmin(user, restaurantService.findRestaurantById(id));
         Restaurant restaurant=restaurantService.updateRestaurantStatus(id);
         return  new ResponseEntity<>(restaurant, HttpStatus.OK);
     }
@@ -78,7 +82,7 @@ public class AdminRestaurantController {
 
     ) throws Exception{
         User user=userService.findUserByJwtToken(jwt);
-        Restaurant restaurant=restaurantService.findRestaurantById(user.getId());
+        Restaurant restaurant=restaurantService.getRestaurantByUserId(user.getId());
         return  new ResponseEntity<>(restaurant, HttpStatus.OK);
     }
 

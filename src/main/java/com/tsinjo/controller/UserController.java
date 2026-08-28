@@ -2,6 +2,7 @@ package com.tsinjo.controller;
 
 import com.tsinjo.model.User;
 import com.tsinjo.service.UserService;
+import com.tsinjo.response.UserResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfigureOrder;
 import org.springframework.http.HttpStatus;
@@ -19,8 +20,9 @@ public class UserController {
     private UserService userService;
 
     @GetMapping("/profile")
-    public ResponseEntity<User> findUserByJwtToken(@RequestHeader("Authorization") String jwt) throws Exception {
+    public ResponseEntity<UserResponse> findUserByJwtToken(@RequestHeader("Authorization") String jwt) throws Exception {
         User user= userService.findUserByJwtToken(jwt);
-        return  new ResponseEntity<>(user, HttpStatus.OK);
+        return ResponseEntity.ok(new UserResponse(user.getId(), user.getFullName(), user.getEmail(),
+                user.getRole(), user.getAddresses()));
     }
 }

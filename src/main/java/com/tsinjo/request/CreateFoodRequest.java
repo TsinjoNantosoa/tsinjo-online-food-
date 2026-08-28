@@ -4,19 +4,29 @@ package com.tsinjo.request;
 import com.tsinjo.model.Category;
 import com.tsinjo.model.IngredientsItem;
 import lombok.Data;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 
 import java.util.List;
 
 
 public class CreateFoodRequest {
 
+    @NotBlank
     private String name;
+    @NotBlank
     private String description;
+    @NotNull
+    @Positive
     private Long price;
+    @NotNull
     private Category category;
 
     private List<String> images;
 
+    @NotNull
+    @Positive
     private Long restaurantId;
     private boolean vegetarian;
     private boolean seasional;

@@ -4,12 +4,14 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.ManyToOne;
+import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
+import java.util.ArrayList;
 
 @Entity
 @AllArgsConstructor
@@ -23,11 +25,22 @@ public class OrderItems {
     @ManyToOne
     private Food food;
 
+    @JsonIgnore
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id", nullable = false)
+    private Order order;
+
     private int quantity;
 
     private Long totalPrice;
 
-    private List<String> ingredients;
+    @ElementCollection
+    @CollectionTable(name = "order_item_ingredients", joinColumns = @JoinColumn(name = "order_item_id"))
+    @Column(name = "ingredient")
+    private List<String> ingredients = new ArrayList<>();
+
+    public Order getOrder() { return order; }
+    public void setOrder(Order order) { this.order = order; }
 
     public Long getId() {
         return id;

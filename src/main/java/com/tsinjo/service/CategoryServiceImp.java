@@ -5,6 +5,7 @@ import com.tsinjo.model.Restaurant;
 import com.tsinjo.repository.CategoryRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import com.tsinjo.exception.ResourceNotFoundException;
 
 import java.util.List;
 import java.util.Optional;
@@ -30,15 +31,15 @@ public class CategoryServiceImp implements CategoryService{
 
     @Override
     public List<Category> findCategoryByRestaurantId(Long id) throws Exception {
-        Restaurant restaurant=restaurantService.getRestaurantByUserId(id);
-        return categoryRepository.findByRestaurantId(restaurant.getId());
+        restaurantService.findRestaurantById(id);
+        return categoryRepository.findByRestaurantId(id);
     }
 
     @Override
     public Category findCategoryById(Long id) throws Exception {
         Optional<Category> optionalCategory=categoryRepository.findById(id);
         if (optionalCategory.isEmpty()){
-            throw  new Exception("the category isn't found .......");
+            throw new ResourceNotFoundException("Category not found with id: " + id);
         }
 
         return optionalCategory.get();

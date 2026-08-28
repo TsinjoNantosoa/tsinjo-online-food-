@@ -125,7 +125,8 @@ public class Restaurant {
         this.foods = foods;
     }
 
-    @OneToOne
+    @OneToOne(optional = false)
+    @JoinColumn(name = "owner_id", nullable = false, unique = true)
     private User owner;
 
     private String name;
@@ -134,7 +135,7 @@ public class Restaurant {
 
     private String cuisineType;
 
-    @OneToOne
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
     private Address address;
 
     @Embedded
@@ -142,19 +143,21 @@ public class Restaurant {
 
     private String openingHours;
 
+    @JsonIgnore
     @OneToMany(mappedBy ="restaurant",cascade = CascadeType.ALL,orphanRemoval = true)
     private List<Order> orders=new ArrayList<>();
 
-    @ElementCollection  //it can create separate table for this
+    @ElementCollection
+    @CollectionTable(name = "restaurant_images", joinColumns = @JoinColumn(name = "restaurant_id"))
     @Column(length = 1000)
-    private List<String>images;
+    private List<String>images = new ArrayList<>();
 
     private LocalDateTime registrationDate;
 
     private boolean open;
 
     @JsonIgnore //(whenever fetch the data ,we don't need to fetch this food object
-    @OneToMany(mappedBy = "restaurant",cascade = CascadeType.ALL)     //one restaurant have multiple foods,whenever remove the food in the db it will be removed
+    @OneToMany(mappedBy = "restaurant", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Food> foods=new ArrayList<>();
 
 

@@ -5,6 +5,9 @@ import com.tsinjo.model.ContactInformation;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 import java.util.List;
 
@@ -13,11 +16,17 @@ import java.util.List;
 @NoArgsConstructor
 public class CreateRestaurantRequest {
     private Long id;
+    @NotBlank
     private String name;
+    @NotBlank
     private  String description;
+    @NotBlank
     private String cuisineType;
+    @NotNull
+    @Valid
     private Address address;
     private ContactInformation contactInformation;
+    @NotBlank
     private String openingHours;
 
     public List<String> getImages() {

@@ -7,6 +7,7 @@ import com.tsinjo.repository.IngredientCategoryRepository;
 import com.tsinjo.repository.IngredientItemRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import com.tsinjo.exception.ResourceNotFoundException;
 
 import java.util.List;
 import java.util.Optional;
@@ -37,7 +38,7 @@ public class IngredientServiceImp implements IngredientsService {
     public IngredientCategory findIngredientsCategoryById(Long id) throws Exception {
         Optional<IngredientCategory>opt=ingredientCategoryRepository.findById(id);
         if (opt.isEmpty()){
-            throw new Exception("Ingredients category not found.........");
+            throw new ResourceNotFoundException("Ingredient category not found with id: " + id);
         }
         return opt.get();
     }
@@ -52,6 +53,9 @@ public class IngredientServiceImp implements IngredientsService {
     public IngredientsItem createIngredientItem(Long restaurantId, String ingredientsName, Long categoryId) throws Exception {
         Restaurant restaurant=restaurantService.findRestaurantById(restaurantId);
         IngredientCategory category=findIngredientsCategoryById(categoryId);
+        if (category.getRestaurant() == null || !category.getRestaurant().getId().equals(restaurantId)) {
+            throw new com.tsinjo.exception.BusinessException("Ingredient category does not belong to the restaurant");
+        }
 
         IngredientsItem item=new IngredientsItem();
         item.setName(ingredientsName);
@@ -71,14 +75,15 @@ public class IngredientServiceImp implements IngredientsService {
 
     @Override
     public IngredientsItem updateStock(Long id) throws Exception {
-        Optional<IngredientsItem> optionalIngredientsItem=ingredientItemRepository.findById(id);
-
-        if (optionalIngredientsItem.isEmpty()){
-            throw new Exception("ingredient not found..........");
-        }
-        IngredientsItem ingredientsItem=optionalIngredientsItem.get();
+        IngredientsItem ingredientsItem = findIngredientById(id);
         ingredientsItem.setStoke(!ingredientsItem.isStoke());
 
         return ingredientItemRepository.save(ingredientsItem);
+    }
+
+    @Override
+    public IngredientsItem findIngredientById(Long id) {
+        return ingredientItemRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Ingredient not found with id: " + id));
     }
 }

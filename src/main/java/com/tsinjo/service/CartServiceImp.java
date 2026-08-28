@@ -9,6 +9,9 @@ import com.tsinjo.repository.CartRepository;
 import com.tsinjo.request.AddCartItemRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import com.tsinjo.exception.ResourceNotFoundException;
+import com.tsinjo.exception.ForbiddenOperationException;
 
 import java.util.Optional;
 
@@ -28,6 +31,7 @@ public class CartServiceImp implements CartService {
     private FoodService foodService;
 
     @Override
+    @Transactional
     public CartItem addItemToCart(AddCartItemRequest req, String jwt) throws Exception {
         User user = userService.findUserByJwtToken(jwt);
         Food food = foodService.findFoodById(req.getFoodId());
@@ -36,7 +40,7 @@ public class CartServiceImp implements CartService {
         for (CartItem cartItem : cart.getItems()) {
             if (cartItem.getFood().equals(food)) {
                 int newQuantity = cartItem.getQuantity() + req.getQuantity();
-                return updateCartItemQuantity(cartItem.getId(), newQuantity);
+                return updateOwnedCartItemQuantity(cartItem, newQuantity);
             }
         }
 
@@ -44,7 +48,7 @@ public class CartServiceImp implements CartService {
         cartItem.setFood(food);
         cartItem.setCart(cart);
         cartItem.setQuantity(req.getQuantity());
-        cartItem.setIngredients(req.getIngredients());
+        cartItem.setIngredients(req.getIngredients() == null ? new java.util.ArrayList<>() : req.getIngredients());
         cartItem.setTotalPrice(req.getQuantity() * food.getPrice()); // Correction ici
 
         CartItem saveCartItem = cartItemRepository.save(cartItem);
@@ -54,12 +58,21 @@ public class CartServiceImp implements CartService {
     }
 
     @Override
-    public CartItem updateCartItemQuantity(Long cartItemId, int quantity) throws Exception {
+    @Transactional
+    public CartItem updateCartItemQuantity(Long cartItemId, int quantity, String jwt) throws Exception {
+        User user = userService.findUserByJwtToken(jwt);
         Optional<CartItem> cartItemOptional = cartItemRepository.findById(cartItemId);
         if (cartItemOptional.isEmpty()) {
-            throw new Exception("The cart item not found right now......");
+            throw new ResourceNotFoundException("Cart item not found with id: " + cartItemId);
         }
         CartItem item = cartItemOptional.get();
+        if (!item.getCart().getCustomer().getId().equals(user.getId())) {
+            throw new ForbiddenOperationException("This cart item does not belong to the authenticated user");
+        }
+        return updateOwnedCartItemQuantity(item, quantity);
+    }
+
+    private CartItem updateOwnedCartItemQuantity(CartItem item, int quantity) {
         item.setQuantity(quantity);
         item.setTotalPrice(item.getFood().getPrice() * quantity);
         return cartItemRepository.save(item);
@@ -72,9 +85,12 @@ public class CartServiceImp implements CartService {
 
         Optional<CartItem> cartItemOptional = cartItemRepository.findById(cartItemId);
         if (cartItemOptional.isEmpty()) {
-            throw new Exception("The cart item not found right now......");
+            throw new ResourceNotFoundException("Cart item not found with id: " + cartItemId);
         }
         CartItem item = cartItemOptional.get();
+        if (!item.getCart().getId().equals(cart.getId())) {
+            throw new ForbiddenOperationException("This cart item does not belong to the authenticated user");
+        }
 
         cart.getItems().remove(item);
         return cartRepository.save(cart);
@@ -93,15 +109,24 @@ public class CartServiceImp implements CartService {
     public Cart findCartById(Long id) throws Exception {
         Optional<Cart> optionalCart = cartRepository.findById(id);
         if (optionalCart.isEmpty()) {
-            throw new Exception("The cart isn't found with this id: " + id);
+            throw new ResourceNotFoundException("Cart not found with id: " + id);
         }
         return optionalCart.get();
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Cart findCartByUserId(Long userId) throws Exception {
         Cart cart = cartRepository.findByCustomerId(userId);
+        if (cart == null) {
+            throw new ResourceNotFoundException("Cart not found for user id: " + userId);
+        }
         cart.setTotal(calculateCartItemTotals(cart));
+        cart.getItems().forEach(item -> {
+            item.getIngredients().size();
+            item.getFood().getImages().size();
+            item.getFood().getIngredients().size();
+        });
         return cart;
     }
 

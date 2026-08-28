@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
+import java.util.ArrayList;
 
 @Entity
 @AllArgsConstructor
@@ -25,7 +26,10 @@ public class CartItem {
 
     private int quantity;
 
-    private List<String> ingredients;
+    @ElementCollection
+    @CollectionTable(name = "cart_item_ingredients", joinColumns = @JoinColumn(name = "cart_item_id"))
+    @Column(name = "ingredient")
+    private List<String> ingredients = new ArrayList<>();
 
     private Long totalPrice;
 

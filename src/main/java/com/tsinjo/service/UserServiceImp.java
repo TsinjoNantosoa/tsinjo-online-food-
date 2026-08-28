@@ -5,6 +5,7 @@ import com.tsinjo.model.User;
 import com.tsinjo.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import com.tsinjo.exception.ResourceNotFoundException;
 
 @Service
 public class UserServiceImp implements UserService{
@@ -27,7 +28,7 @@ public class UserServiceImp implements UserService{
         User user=userRepository.findByEmail(email);
 
         if (user==null){
-            throw new Exception("user not found");
+            throw new ResourceNotFoundException("User not found for email: " + email);
         }
 
         return user;

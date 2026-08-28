@@ -7,6 +7,8 @@ import com.tsinjo.repository.FoodRepository;
 import com.tsinjo.request.CreateFoodRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import com.tsinjo.exception.ResourceNotFoundException;
 
 import java.util.List;
 import java.util.Optional;
@@ -26,12 +28,14 @@ public class FoodServiceImp implements FoodService{
         food.setCategory(category);
         food.setRestaurant(restaurant);
         food.setDescription(req.getDescription());
-        food.setImages(req.getImages());
+        food.setImages(req.getImages() == null ? new java.util.ArrayList<>() : req.getImages());
         food.setName(req.getName());
         food.setPrice(req.getPrice());
-        food.setIngredients(req.getIngredients());
+        food.setIngredients(req.getIngredients() == null ? new java.util.ArrayList<>() : req.getIngredients());
         food.setSeasonal(req.isSeasional());
         food.setVegetarian(req.isVegetarian());
+        food.setAvailable(true);
+        food.setCreationDate(new java.util.Date());
 
         Food saveFood=foodRepository.save(food);
         restaurant.getFoods().add(food);
@@ -40,14 +44,18 @@ public class FoodServiceImp implements FoodService{
     }
 
     @Override
+    @Transactional
     public void deleteFood(Long foodId) throws Exception {
         Food food=findFoodById(foodId);
-        food.setRestaurant(null);
-        foodRepository.save(food);
+        if (food.getRestaurant() != null) {
+            food.getRestaurant().getFoods().remove(food);
+        }
+        foodRepository.delete(food);
 
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<Food> getRestaurantFood(Long restaurantId,
                                         boolean isVegetarian,
                                         boolean isNonVeg,
@@ -67,7 +75,8 @@ public class FoodServiceImp implements FoodService{
             foods=filterByCategory(foods, foodCategory);
         }
 
-        return List.of();
+        foods.forEach(this::initializeCollections);
+        return foods;
     }
 
     private List<Food> filterByCategory(List<Food> foods, String foodCategory) {
@@ -94,17 +103,23 @@ public class FoodServiceImp implements FoodService{
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<Food> searchFood(String keyword) {
-        return foodRepository.searchFood(keyword);
+        List<Food> foods = foodRepository.searchFood(keyword);
+        foods.forEach(this::initializeCollections);
+        return foods;
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Food findFoodById(Long foodId) throws Exception {
         Optional<Food>optionalFood=foodRepository.findById(foodId);
         if (optionalFood.isEmpty()){
-            throw  new Exception("food not exist....");
+            throw new ResourceNotFoundException("Food not found with id: " + foodId);
         }
-        return optionalFood.get();
+        Food food = optionalFood.get();
+        initializeCollections(food);
+        return food;
     }
 
     @Override
@@ -113,5 +128,10 @@ public class FoodServiceImp implements FoodService{
         food.setAvailable(!food.isAvailable());
 
         return foodRepository.save(food);
+    }
+
+    private void initializeCollections(Food food) {
+        food.getImages().size();
+        food.getIngredients().size();
     }
 }

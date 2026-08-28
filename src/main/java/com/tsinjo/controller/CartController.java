@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api")
@@ -22,31 +23,31 @@ public class CartController {
     @Autowired
     private UserService userService;
 
-    @PutMapping("/cart/add")
+    @PostMapping("/cart/items")
     public ResponseEntity<CartItem> addItemToCart(
-            @RequestBody AddCartItemRequest req,
+            @Valid @RequestBody AddCartItemRequest req,
             @RequestHeader ("Authorization") String jwt) throws Exception{
         CartItem cartItem= cartService.addItemToCart(req, jwt);
         return new ResponseEntity<>(cartItem, HttpStatus.OK);
     }
 
-    @PutMapping("/cart-item/update")
+    @PutMapping("/cart/items")
     public ResponseEntity<CartItem> updateCartItemRequest(
-            @RequestBody UpdateCartItemRequest req,
+            @Valid @RequestBody UpdateCartItemRequest req,
             @RequestHeader ("Authorization") String jwt) throws Exception{
-        CartItem cartItem=cartService.updateCartItemQuantity(req.getCartItemId(), req.getQuantity());
+        CartItem cartItem=cartService.updateCartItemQuantity(req.getCartItemId(), req.getQuantity(), jwt);
         return new ResponseEntity<>(cartItem, HttpStatus.OK);
     }
 
-    @PutMapping("/cart-item/remove")
-    public ResponseEntity<Cart> removeCartItem(
+    @DeleteMapping("/cart/items/{id}")
+    public ResponseEntity<Void> removeCartItem(
             @PathVariable Long id,
             @RequestHeader ("Authorization") String jwt) throws Exception{
-        Cart cart=cartService.removeItemFromCart(id, jwt);
-        return new ResponseEntity<>(cart, HttpStatus.OK);
+        cartService.removeItemFromCart(id, jwt);
+        return ResponseEntity.noContent().build();
     }
 
-    @PutMapping("/cart/clear")
+    @DeleteMapping("/cart")
     public ResponseEntity<Cart> clearCart(
             @RequestHeader ("Authorization") String jwt) throws Exception{
         User user=userService.findUserByJwtToken(jwt);

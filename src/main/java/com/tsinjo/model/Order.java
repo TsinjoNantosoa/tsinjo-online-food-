@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 
 import java.util.Date;
 import java.util.List;
+import java.util.ArrayList;
 
 @Entity
 @AllArgsConstructor
@@ -37,8 +38,8 @@ public class Order {
 
     private Long totalPrice; // Correction du nom du champ
 
-    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<OrderItems> items;
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<OrderItems> items = new ArrayList<>();
 
     private int totalItems;
 

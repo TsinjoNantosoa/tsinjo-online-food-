@@ -17,7 +17,8 @@ public class Cart {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
 
-    @OneToOne
+    @OneToOne(optional = false)
+    @JoinColumn(name = "customer_id", nullable = false, unique = true)
     private User customer;
 
     private Long total;

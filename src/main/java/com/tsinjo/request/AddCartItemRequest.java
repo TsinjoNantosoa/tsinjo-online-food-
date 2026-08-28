@@ -1,10 +1,15 @@
 package com.tsinjo.request;
 
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import java.util.List;
 
 public class AddCartItemRequest {
+    @NotNull
+    @Positive
     private Long foodId;
 
+    @Positive
     private int quantity;
 
     private List<String> ingredients;

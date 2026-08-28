@@ -31,11 +31,13 @@ public class Food {
 
     @Column(length = 1000)
     @ElementCollection
-    private List<String> images;
+    @CollectionTable(name = "food_images", joinColumns = @JoinColumn(name = "food_id"))
+    private List<String> images = new ArrayList<>();
 
     private boolean available;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private Restaurant restaurant;
 
     private boolean isVegetarian;
@@ -45,6 +47,7 @@ public class Food {
     @ManyToMany
     private List<IngredientsItem> ingredients=new ArrayList<>();
 
+    @Temporal(TemporalType.TIMESTAMP)
     private Date creationDate;
 
     public Long getId() {

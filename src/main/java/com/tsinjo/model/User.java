@@ -3,7 +3,6 @@ package com.tsinjo.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.tsinjo.dto.RestaurantDto;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -13,6 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
+@Table(name = "users", indexes = @Index(name = "idx_users_email", columnList = "email", unique = true))
 //@Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -24,22 +24,29 @@ public class User {
     private Long id;
 
     private String fullName;
+    @Column(nullable = false, unique = true)
     private String email;
 
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private USER_ROLE role = USER_ROLE.ROLE_CUSTOMER;
 
     @JsonIgnore
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "customer")
     private List<Order> orders = new ArrayList<>();
 
-    @ElementCollection(fetch = FetchType.EAGER)
-    private List<RestaurantDto> favorites = new ArrayList<>();
+    @JsonIgnore
+    @ManyToMany
+    @JoinTable(name = "user_favorite_restaurants",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "restaurant_id"))
+    private List<Restaurant> favorites = new ArrayList<>();
 
-//    @JsonIgnore
-    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @JsonIgnore
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Address> addresses = new ArrayList<>();
 
     public Long getId() {
@@ -90,11 +97,11 @@ public class User {
         this.orders = orders;
     }
 
-    public List<RestaurantDto> getFavorites() {
+    public List<Restaurant> getFavorites() {
         return favorites;
     }
 
-    public void setFavorites(List<RestaurantDto> favorites) {
+    public void setFavorites(List<Restaurant> favorites) {
         this.favorites = favorites;
     }
 

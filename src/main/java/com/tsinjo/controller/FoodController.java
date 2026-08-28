@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.List;
 
@@ -21,6 +22,7 @@ public class FoodController {
     @Autowired
     private UserService userService;
 
+    @Autowired
     private FoodService foodService;
 
     @Autowired
@@ -36,14 +38,14 @@ public class FoodController {
 
         List<Food> food=foodService.searchFood(name);
 
-        return  new ResponseEntity<>(food, HttpStatus.CREATED);
+        return ResponseEntity.ok(food);
     }
 
     @GetMapping("/restaurant/{restaurantId}")
     public ResponseEntity<List<Food>> getRestaurantFood(
-                                                 @RequestParam boolean vegetarian,
-                                                 @RequestParam boolean seasonal,
-                                                 @RequestParam boolean nonVegetarian,
+                                                 @RequestParam(defaultValue = "false") boolean vegetarian,
+                                                 @RequestParam(defaultValue = "false") boolean seasonal,
+                                                 @RequestParam(defaultValue = "false") boolean nonVegetarian,
                                                  @RequestParam (required = false) String food_category,
                                                  @PathVariable Long restaurantId,
                                                  @RequestHeader("Authorization") String jwt

@@ -3,53 +3,59 @@ package com.tsinjo.config;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
-import java.util.Collection;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class JwtProvider {
+    private final SecretKey key;
+    private final long expirationMs;
 
-    private SecretKey key = Keys.hmacShaKeyFor(JwtConstant.SECRET_KEY.getBytes());
+    public JwtProvider(@Value("${jwt.secret}") String secret,
+                       @Value("${jwt.expiration-ms:86400000}") long expirationMs) {
+        if (secret == null || secret.length() < 32) {
+            throw new IllegalArgumentException("JWT_SECRET must contain at least 32 characters");
+        }
+        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        this.expirationMs = expirationMs;
+    }
 
-    public String generateToken(Authentication auth) {
-        Collection<? extends GrantedAuthority> authorities = auth.getAuthorities();
-        String roles = populateAuthorities(authorities);
-
-        String jwt = Jwts.builder()
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + 86400000)) // Wrap in `Date`
-                .claim("email", auth.getName())
-                .claim("authorities", roles)
+    public String generateToken(Authentication authentication) {
+        String authorities = authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .sorted()
+                .collect(Collectors.joining(","));
+        Date now = new Date();
+        return Jwts.builder()
+                .setSubject(authentication.getName())
+                .setIssuedAt(now)
+                .setExpiration(new Date(now.getTime() + expirationMs))
+                .claim("authorities", authorities)
                 .signWith(key)
                 .compact();
-        return jwt;
     }
 
-    public String getEmailFromJwtToken(String jwt) { // Added parameter type and braces
-        jwt = jwt.substring(7); // Assuming JWT has "Bearer " prefix; remove it here
-        Claims claims = Jwts.parserBuilder()
-                .setSigningKey(key)
-                .build()
-                .parseClaimsJws(jwt)
-                .getBody();
-
-        return String.valueOf(claims.get("email"));
+    public Claims parseClaims(String tokenOrHeader) {
+        String token = extractToken(tokenOrHeader);
+        return Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token).getBody();
     }
 
-    private String populateAuthorities(Collection<? extends GrantedAuthority> authorities) {
-        Set<String> auths = new HashSet<>();
+    public String getEmailFromJwtToken(String tokenOrHeader) {
+        return parseClaims(tokenOrHeader).getSubject();
+    }
 
-        for (GrantedAuthority authority : authorities) {
-            auths.add(authority.getAuthority());
+    private String extractToken(String tokenOrHeader) {
+        if (tokenOrHeader == null || tokenOrHeader.isBlank()) {
+            throw new IllegalArgumentException("JWT is missing");
         }
-
-        return String.join(",", auths);
+        return tokenOrHeader.startsWith(JwtConstant.BEARER_PREFIX)
+                ? tokenOrHeader.substring(JwtConstant.BEARER_PREFIX.length()) : tokenOrHeader;
     }
 }

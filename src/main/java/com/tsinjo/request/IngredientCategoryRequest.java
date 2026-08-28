@@ -1,9 +1,14 @@
 package com.tsinjo.request;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
 public class IngredientCategoryRequest {
 
+    @NotBlank
     private String name;
 
+    @NotNull
     private Long restaurantId;
 
     public Long getRestaurantId() {
